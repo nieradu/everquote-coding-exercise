@@ -1,0 +1,12 @@
+__pycache__
+node_modules
+
+src/**/*.js
+src/**/*.map
+
+dist/**/*.js
+dist/**/*.map
+
+coverage
+*.py
+*.xlsx
