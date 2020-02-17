@@ -87,6 +87,9 @@ export default class InsuranceCallCenter {
    */
 
   public newTask(consumer: IConsumer) {
+    let possibleAgents: IAgent[];
+    let availableAgents: IAgent[];
+    let chosenAgent: IAgent;
     /** search for agents matching attributes
      * if all agents found are != idle
      * taskQueues will be called
@@ -98,8 +101,9 @@ export default class InsuranceCallCenter {
 
     // }
 
-    let possibleAgents: IAgent[] = this.CACHE.agents.filter((obj: any) => {
+    possibleAgents = this.CACHE.agents.filter((obj: any) => {
       let agent: IAgent = obj.details;
+      /** Specs 2 line 3 -  */
       return (
         (agent.minAgeInterval <= consumer.age &&
           agent.maxAgeInterval >= consumer.age) ||
@@ -114,17 +118,42 @@ export default class InsuranceCallCenter {
       );
     });
 
-    console.log(
-      possibleAgents.filter((x: any) => x.details.state == IAgentState.IDLE)
+    /** Look for agents that have state: IDLE */
+    availableAgents = possibleAgents.filter(
+      (x: any) => x.details.state == IAgentState.IDLE
     );
+    /** If agents are avaiable */
+    if (availableAgents && availableAgents.length > 0) {
+      /** Specs 4.C - chose random agent if multiple match consumer's attributes */
+      chosenAgent =
+        availableAgents[Math.floor(Math.random() * availableAgents.length)];
+      /** It can have the call with the agent
+       *
+       * return with a task
+       * with status ok
+       */
+      /** Consumer connected to Agent - close task */
+      return chosenAgent;
+    }
+    /**
+     * generate task
+     * */
+
+    // return {
+    //   date: "",
+    //   agents: [],
+    //   consumer: consumer,
+    //   status: true
+    // }
   }
 
   public matchAgents() {
     /** retrieve all agents that match a certain range or value from consumer attributes */
   }
 
-  public taskQueues() {
+  public taskQueues(agents: any[], consumer: IConsumer) {
     /** stack tasks that matched when task was created to a set of agents but they were busy */
+    //this.taskQueuesStack.push()
   }
 
   public workflow() {
