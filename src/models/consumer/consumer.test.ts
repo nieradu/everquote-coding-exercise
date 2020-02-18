@@ -1,4 +1,4 @@
-import Consumer from "./consumer.model";
+import Consumer from "./consumer";
 import * as IConsumerAttributes from "./consumer.interface";
 
 describe("Insurance Call Center", () => {

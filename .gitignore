@@ -4,6 +4,7 @@ node_modules
 src/**/*.js
 src/**/*.map
 
+dist
 dist/**/*.js
 dist/**/*.map
 

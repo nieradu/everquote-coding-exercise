@@ -22,6 +22,6 @@ describe("Agent tests", () => {
     expect(agent).toBeDefined();
   });
   it("Should be offline", () => {
-    expect(agent.state).toBe(IAgentState.OFFLINE);
+    expect(agent.details.state).toBe(IAgentState.OFFLINE);
   });
 });
