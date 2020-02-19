@@ -23,7 +23,11 @@ import { IAgentState } from "./models/agent/agent.interface";
  */
 
 describe("Insurance Call Center", () => {
-  var icc = new InsuranceCallCenter({ noAgents: 20 });
+  var icc = new InsuranceCallCenter({
+    noAgents: 20,
+    minCallSleep: 1,
+    maxCallSleep: 2
+  });
   var consumer = new Consumer({
     age: 30,
     householdIncome: 0,
@@ -56,11 +60,19 @@ describe("Insurance Call Center", () => {
   var agents: Array<Agent> = [agent, agent, agent];
 
   it("Should be able to generate 2 agents", () => {
-    var icc = new InsuranceCallCenter({ noAgents: 2 });
+    var icc = new InsuranceCallCenter({
+      noAgents: 2,
+      minCallSleep: 1,
+      maxCallSleep: 2
+    });
     expect(icc.inMemory.agents.length).toEqual(2);
   });
   it("Should be able to make a call", () => {
-    var icc = new InsuranceCallCenter({ noAgents: 20 });
+    var icc = new InsuranceCallCenter({
+      noAgents: 20,
+      minCallSleep: 1,
+      maxCallSleep: 2
+    });
     expect(icc.newCall).toBeDefined();
   });
   // it("Should Generate agent", () => {});

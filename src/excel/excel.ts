@@ -1,7 +1,14 @@
 import Consumer from "../models/consumer/consumer";
 import Agent from "../models/agent/agent";
+import { VoiceMail } from "../models/voiceMail/voiceMail";
 
 var excel = require("excel4node");
+
+export interface Report {
+  agent: Agent;
+  noVoiceMail: number;
+  noCalls: number;
+}
 
 export class Excel {
   public workbook: any;
@@ -56,8 +63,10 @@ export class Excel {
     this.agentsSheet.cell(1, 3).string("No. Calls");
   }
 
-  public reportSheetData() {
-    //this.agentsSheet.cell()
+  public reportSheetData(rowNo: number, report: Report) {
+    this.agentsSheet.cell(rowNo, 1).string(report.agent.details.name);
+    this.agentsSheet.cell(rowNo, 2).string(report.noVoiceMail.toString());
+    this.agentsSheet.cell(rowNo, 3).string(report.noCalls.toString());
   }
 
   public consumerSheetData(rowNo: number, consumer: Consumer) {

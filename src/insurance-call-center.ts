@@ -16,13 +16,15 @@ import { OpenCall } from "./models/openCall/openCall";
 
 export interface ICallCenterParams {
   noAgents: number;
+  minCallSleep: number;
+  maxCallSleep: number;
 }
 
 export interface ILogger {
-  consumers: Array<Consumer>;
-  agents: Array<Agent>;
-  callLogs: any;
-  voiceMails: Array<VoiceMail>;
+  consumers: async.AsyncQueue<Consumer>;
+  agents: async.AsyncQueue<Agent>;
+  recievedCallLogs: async.AsyncQueue<Agent>;
+  voiceMails: async.AsyncQueue<VoiceMail>;
 }
 
 export default class InsuranceCallCenter {
@@ -34,11 +36,23 @@ export default class InsuranceCallCenter {
   public historyVoiceMailQueue: Array<VoiceMail> = [];
   public callRouter: async.AsyncQueue<Consumer>;
   public excel: Excel;
-  public logger: ILogger = {
-    consumers: [],
-    agents: [],
-    callLogs: null,
-    voiceMails: []
+  public loggerQueue: ILogger = {
+    consumers: async.queue((task: any, callback) => {
+      //console.log(`cons queue`);
+      callback();
+    }, 1),
+    agents: async.queue((task: any, callback) => {
+      //console.log(`ag queue`);
+      callback();
+    }, 1),
+    recievedCallLogs: async.queue((task: any, callback) => {
+      //console.log(`rec all queue`);
+      callback();
+    }, 1),
+    voiceMails: async.queue((task: any, callback) => {
+      //console.log(`voice m queue`);
+      callback();
+    }, 1)
   };
 
   constructor(private params: ICallCenterParams) {
@@ -51,6 +65,7 @@ export default class InsuranceCallCenter {
 
     this.createCallFromVoicemailWorker();
     this.workerForVoiceMailQueue();
+    this.workerForReport();
   }
 
   public initCallRouter() {
@@ -60,28 +75,28 @@ export default class InsuranceCallCenter {
       /** Free task from queue */
 
       callback();
-    }, 1 /* this represents the concurency for handling calls we asume there are 20 calls at a time*/);
+    }, 10);
 
     this.callRouter.drain(() => {
-      this.logger.consumers.forEach((consumer: Consumer, index: number) => {
-        const firstRowIndex = 1;
-        const headerRowIndex = 1;
-        this.excel.consumerSheetData(
-          index + firstRowIndex + headerRowIndex,
-          consumer
-        );
-      });
-      this.logger.agents.forEach((agent: Agent, index: number) => {
-        const firstRowIndex = 1;
-        const headerRowIndex = 1;
-        this.excel.agentSheetData(
-          index + firstRowIndex + headerRowIndex,
-          agent
-        );
-      });
-      /** All calls have been executed */
-      /** Save excel file */
-      this.excel.saveExcel("IIC");
+      // this.logger.consumers.forEach((consumer: Consumer, index: number) => {
+      //   const firstRowIndex = 1;
+      //   const headerRowIndex = 1;
+      //   this.excel.consumerSheetData(
+      //     index + firstRowIndex + headerRowIndex,
+      //     consumer
+      //   );
+      // });
+      // this.logger.agents.forEach((agent: Agent, index: number) => {
+      //   const firstRowIndex = 1;
+      //   const headerRowIndex = 1;
+      //   this.excel.agentSheetData(
+      //     index + firstRowIndex + headerRowIndex,
+      //     agent
+      //   );
+      // });
+      // /** All calls have been executed */
+      // /** Save excel file */
+      // this.excel.saveExcel("IIC");
     });
   }
 
@@ -117,6 +132,7 @@ export default class InsuranceCallCenter {
 
         this.openCall(selectedAgent, consumer).then((data: any) => {
           /** Trigger after call has ended */
+          this.loggerQueue.recievedCallLogs.push(data.agent);
           this.endCall(data.agent, data.consumer);
         });
         return;
@@ -140,7 +156,7 @@ export default class InsuranceCallCenter {
     /** Adds new call to callRouter queue */
     this.callRouter.push(consumer, (err: any) => {
       /** log consumers */
-      this.logger.consumers.push(consumer);
+      this.loggerQueue.consumers.push(consumer);
 
       //Done
       if (err) {
@@ -192,7 +208,7 @@ export default class InsuranceCallCenter {
       resolve => {
         setTimeout(() => {
           resolve({ agent, consumer });
-        }, utils.randomNumberInterval(1, 3));
+        }, utils.randomNumberInterval(this.params.minCallSleep, this.params.maxCallSleep));
       }
     );
     return newOpenCall;
@@ -212,6 +228,7 @@ export default class InsuranceCallCenter {
   public addVoiceMail(voiceMail: VoiceMail) {
     /** Spec 3 - Places voiceMails in voiceMailQueues for agents to call back*/
     this.voiceMailQueues.push(voiceMail);
+    this.loggerQueue.voiceMails.push(voiceMail);
   }
 
   public getVoiceMailFor(name: string): Array<VoiceMail> {
@@ -227,7 +244,7 @@ export default class InsuranceCallCenter {
     /** Searches for idle agents
      *  Sets first voicemail found to status (CALL_BACK) for each idle agent
      */
-    setInterval(() => {
+    let workInterval = setInterval(() => {
       let idleAgents = this.getAvailableAgents(
         this.inMemory.agents,
         IAgentState.IDLE
@@ -239,27 +256,44 @@ export default class InsuranceCallCenter {
           voiceMailList[0].status = IVoiceMailStatus.CALL_BACK;
         }
       });
+
+      if (
+        this.voiceMailQueues.length == 0 &&
+        this.historyVoiceMailQueue.length > 0
+      ) {
+        clearInterval(workInterval);
+      }
     }, 100);
+  }
+
+  public workerForReport() {
+    this.loggerQueue.consumers.drain(() => {
+      /** Consumers done */
+      console.log(`Consumer drain`);
+    });
+    this.loggerQueue.agents.drain(() => {
+      /** Agents done */
+      console.log(`Agents drain`);
+    });
+    this.loggerQueue.recievedCallLogs.drain(() => {
+      /** Recieved calls done */
+      console.log(`CallLogs drain`);
+    });
+    this.loggerQueue.voiceMails.drain(() => {
+      /** Voicemails done */
+      console.log(`Voicemail drain`);
+    });
   }
 
   public createCallFromVoicemailWorker() {
     var _this = this;
-    setInterval(() => {
-      console.log(
-        `Voicemails left: ${
-          _this.voiceMailQueues.filter(
-            x =>
-              x.status == IVoiceMailStatus.NEW ||
-              x.status == IVoiceMailStatus.CALL_BACK
-          ).length
-        }`
-      );
-
+    let workerInterval = setInterval(() => {
       if (_this.voiceMailQueues && _this.voiceMailQueues.length > 0) {
         let voiceMailToCall = _this.voiceMailQueues.find(x => {
           return (
             (x.status == IVoiceMailStatus.NEW ||
               x.status == IVoiceMailStatus.CALL_BACK) &&
+            x.asignedAgent == null &&
             _this.getAvailableAgents(x.agents, IAgentState.IDLE).length > 0
           );
         });
@@ -272,23 +306,40 @@ export default class InsuranceCallCenter {
           if (agents && agents.length > 0) {
             let agent = utils.randomObjFromArray(agents);
             agent.details.state = IAgentState.BUSY;
+            voiceMailToCall.asignedAgent = agent;
 
-            console.log(`${agent.details.name} is now busy`);
+            console.log(
+              `${agent.details.name} is now busy with ${voiceMailToCall.consumer.consumerData.phoneNo}`
+            );
 
             _this.newOutboundCall(voiceMailToCall).then(voiceMail => {
               _this.endCall(agent, voiceMail.consumer, voiceMail);
+              console.log(
+                `Voicemails left: ${
+                  this.voiceMailQueues.filter(
+                    x =>
+                      x.status == IVoiceMailStatus.NEW ||
+                      x.status == IVoiceMailStatus.CALL_BACK
+                  ).length
+                }`
+              );
             });
           }
         }
+      } else if (
+        _this.voiceMailQueues.length == 0 &&
+        _this.historyVoiceMailQueue.length > 0
+      ) {
+        clearInterval(workerInterval);
       }
-    }, 10);
+    }, 100);
   }
-
+  count: any = 0;
   public newOutboundCall(voiceMailToCall: VoiceMail): Promise<VoiceMail> {
     var newOpenCall = new Promise<VoiceMail>(resolve => {
       setTimeout(() => {
         resolve(voiceMailToCall);
-      }, utils.randomNumberInterval(1, 3));
+      }, utils.randomNumberInterval(this.params.minCallSleep, this.params.maxCallSleep));
     });
     return newOpenCall;
   }
@@ -298,14 +349,16 @@ export default class InsuranceCallCenter {
     //this.callLog.push()
     // 2. update agent status
     agent.details.state = IAgentState.IDLE;
-
+    console.log(`${agent.details.name} is IDLE`);
     /** 3. For voicemail handling if the call ended came from a voiceMail */
     if (voiceMail) {
       voiceMail.updateVoiceMail({
         status: IVoiceMailStatus.DONE,
         asignedAgent: agent
       });
+      /** Add to historyQueue resolved voiceMail */
       this.historyVoiceMailQueue.push(voiceMail);
+      /** Remove from voiceMailQueues voiceMails resolved */
       this.voiceMailQueues = this.voiceMailQueues.filter(
         x => x.id != voiceMail.id
       );
@@ -358,7 +411,7 @@ export default class InsuranceCallCenter {
       });
 
       this.inMemory.agents.push(newAgent);
-      this.logger.agents.push(newAgent);
+      this.loggerQueue.agents.push(newAgent);
     }
   }
 }

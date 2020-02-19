@@ -12,7 +12,11 @@ class App {
     /** Generate 100 consumers */
     this.generateConsumers(100);
     /** New InsuranceCallCenter */
-    this.callCenter = new InsuranceCallCenter({ noAgents: 20 });
+    this.callCenter = new InsuranceCallCenter({
+      noAgents: 20,
+      minCallSleep: 100,
+      maxCallSleep: 300
+    });
 
     /** Each consumer makes a call */
     this.consumers.forEach((consumer: Consumer) => {
