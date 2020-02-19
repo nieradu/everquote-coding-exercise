@@ -93,6 +93,5 @@ describe("Insurance Call Center", () => {
       //icc.workflow(consumer);
       //(1 + Math.floor((3 - 1) * Math.random())) * 100
     }
-    console.log(icc.voiceMailQueues.length);
   });
 });

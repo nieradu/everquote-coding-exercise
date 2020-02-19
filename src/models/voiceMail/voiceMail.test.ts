@@ -37,10 +37,6 @@ describe("VoiceMail group", () => {
   });
   let task = new VoiceMail(agents, consumer);
 
-  it("should behave...", () => {
-    expect(true).toBe(true);
-  });
-
   it("Should have property status", () => {
     expect(task.status).toBeDefined();
   });

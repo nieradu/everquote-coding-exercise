@@ -1,29 +1,23 @@
-import * as sourceMaps from "source-map-support";
 import InsuranceCallCenter from "./insurance-call-center";
 import { EStatus, EState } from "./models/consumer/consumer.interface";
 import Consumer from "./models/consumer/consumer";
-import Agent from "./models/agent/agent";
+
 import * as utils from "./utils/utils";
-
-//sourceMaps.install();
-
-// - ma asigur ca apelul nu se termina instant
-// - raportul
 
 class App {
   public consumers: Array<Consumer> = [];
-  public icc: InsuranceCallCenter;
+  public callCenter: InsuranceCallCenter;
+
   constructor() {
-    /** Generate 3 consumers */
+    /** Generate 100 consumers */
     this.generateConsumers(100);
     /** New InsuranceCallCenter */
-    this.icc = new InsuranceCallCenter({ noAgents: 20 });
+    this.callCenter = new InsuranceCallCenter({ noAgents: 20 });
 
+    /** Each consumer makes a call */
     this.consumers.forEach((consumer: Consumer) => {
-      this.icc.newCall(consumer);
+      this.callCenter.newCall(consumer);
     });
-
-    //console.log(this.icc.callLog);
   }
 
   public generateConsumers(number: number) {
