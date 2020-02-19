@@ -1,4 +1,4 @@
-import Agent from "./agent.model";
+import Agent from "./agent";
 import { EState, EStatus } from "../consumer/consumer.interface";
 import { IAgentState, IAgent } from "./agent.interface";
 

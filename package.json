@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest --coverage",
     "test:watch": "jest --coverage --watchAll",
-    "build": "tsc",
+    "build": "tsc -w",
     "build:watch": "onchange -k '.\\src\\**\\*.ts' -- npm run build",
     "view:coverage": "serve coverage/lcov-report",
     "clean": "rm -rf coverage dist/out-tsc/**/*.js dist/out-tsc/**/*.map",
@@ -31,6 +31,8 @@
     "typescript": "^3.7.5"
   },
   "dependencies": {
+    "@types/async": "^3.0.7",
+    "async": "^3.1.1",
     "excel4node": "^1.7.2"
   }
 }

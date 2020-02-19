@@ -1,21 +1,21 @@
 import InsuranceCallCenter from "./insurance-call-center";
 import Consumer from "./models/consumer/consumer";
-import Agent from "./models/agent/agent.model";
+import Agent from "./models/agent/agent";
 import * as IConsumerAttributes from "./models/consumer/consumer.interface";
 import { VoiceMail } from "./models/voiceMail/voiceMail";
 import { IAgentState } from "./models/agent/agent.interface";
 /**
- * Tasks
+ * VoiceMails
  *    Represents a consumer trying to contact an agent
  *
  * MatchAgents
- *    Responsible for handling Tasks
+ *    Responsible for handling VoiceMails
  *
- * Task Queues
- *    Holds Tasks to be consumed by a set of Agents
+ * VoiceMail Queues
+ *    Holds VoiceMails to be consumed by a set of Agents
  *
  * Workflows
- *    Responsible for placing Tasks into Task Queues
+ *    Responsible for placing VoiceMails into VoiceMail Queues
  *
  * Activities
  *    Possible states of an Agent. Eg: idle, offline, busy
@@ -53,20 +53,46 @@ describe("Insurance Call Center", () => {
     maxHouseholdIncome: 5000,
     state: IAgentState.OFFLINE
   });
+  var agents: Array<Agent> = [agent, agent, agent];
 
-  it("Should be true", () => {
-    expect(true).toBeTruthy();
+  it("Should be able to generate 2 agents", () => {
+    var icc = new InsuranceCallCenter({ noAgents: 2 });
+    expect(icc.inMemory.agents.length).toEqual(2);
+  });
+  it("Should be able to make a call", () => {
+    var icc = new InsuranceCallCenter({ noAgents: 20 });
+    expect(icc.newCall).toBeDefined();
   });
   // it("Should Generate agent", () => {});
   it("Should be able to generate a new task", () => {
-    icc.newTask(consumer);
+    icc.newCall(consumer);
   });
   it("Should generate an Insurance Call Center with 20 random agents", () => {
     expect(icc).toBeDefined();
   });
   it("Should push a task in queue", () => {
     let task = new VoiceMail([agent], consumer);
-    icc.workflow(task);
-    expect(icc.taskQueues).toHaveProperty("length", 1);
+    icc.addVoiceMail(task);
+    expect(icc.voiceMailQueues.length).toBeGreaterThan(0);
+  });
+  it("Should test a consumer can make a call", () => {});
+  it("Should test voiceMail is created after consumer calls and agent is busy", () => {
+    icc.inMemory.agents.forEach((agent: Agent) => {
+      agent.details.state = IAgentState.BUSY;
+    });
+    let beforeCall = icc.voiceMailQueues.length;
+
+    icc.newCall(consumer);
+
+    expect(icc.voiceMailQueues.length).toBeGreaterThan(beforeCall);
+  });
+
+  it("Given 20 Agents when 1000 calls happen then schedule & consume all", () => {
+    icc.inMemory.agents = [];
+    for (let index = 1; index <= 1000; index++) {
+      //icc.workflow(consumer);
+      //(1 + Math.floor((3 - 1) * Math.random())) * 100
+    }
+    console.log(icc.voiceMailQueues.length);
   });
 });

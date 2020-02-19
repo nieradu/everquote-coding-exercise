@@ -1,5 +1,5 @@
 import { VoiceMail } from "./voiceMail";
-import Agent from "../agent/agent.model";
+import Agent from "../agent/agent";
 import { IAgentState } from "../agent/agent.interface";
 import Consumer from "../consumer/consumer";
 import { EState, EStatus } from "../consumer/consumer.interface";
@@ -50,7 +50,7 @@ describe("VoiceMail group", () => {
   });
 
   it("Should move task status to done", () => {
-    task.setStatus(IVoiceMailStatus.DONE);
+    task.updateVoiceMail({ status: IVoiceMailStatus.DONE });
     expect(task).toHaveProperty("status", IVoiceMailStatus.DONE);
   });
 });
