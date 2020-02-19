@@ -58,15 +58,15 @@ export class Excel {
 
   public reportSheetHeader() {
     /** Header row */
-    this.agentsSheet.cell(1, 1).string("Agent Name");
-    this.agentsSheet.cell(1, 2).string("No. Voicemails");
-    this.agentsSheet.cell(1, 3).string("No. Calls");
+    this.reportSheet.cell(1, 1).string("Agent Name");
+    this.reportSheet.cell(1, 2).string("No. Voicemails");
+    this.reportSheet.cell(1, 3).string("No. Calls");
   }
 
   public reportSheetData(rowNo: number, report: Report) {
-    this.agentsSheet.cell(rowNo, 1).string(report.agent.details.name);
-    this.agentsSheet.cell(rowNo, 2).string(report.noVoiceMail.toString());
-    this.agentsSheet.cell(rowNo, 3).string(report.noCalls.toString());
+    this.reportSheet.cell(rowNo, 1).string(report.agent.details.name);
+    this.reportSheet.cell(rowNo, 2).string(report.noVoiceMail.toString());
+    this.reportSheet.cell(rowNo, 3).string(report.noCalls.toString());
   }
 
   public consumerSheetData(rowNo: number, consumer: Consumer) {

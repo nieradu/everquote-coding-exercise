@@ -11,6 +11,7 @@ class App {
   constructor() {
     /** Generate 100 consumers */
     this.generateConsumers(100);
+
     /** New InsuranceCallCenter */
     this.callCenter = new InsuranceCallCenter({
       noAgents: 20,
