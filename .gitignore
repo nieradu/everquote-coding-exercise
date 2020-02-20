@@ -11,3 +11,4 @@ dist/**/*.map
 coverage
 *.py
 # *.xlsx
+bkp_*.xlsx
