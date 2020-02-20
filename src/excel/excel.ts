@@ -4,9 +4,9 @@ import { VoiceMail } from "../models/voiceMail/voiceMail";
 
 var excel = require("excel4node");
 
-export interface Report {
-  agent: Agent;
-  noVoiceMail: number;
+export interface IReport {
+  name: string;
+  voiceMailsCalls: number;
   noCalls: number;
 }
 
@@ -63,30 +63,26 @@ export class Excel {
     this.reportSheet.cell(1, 3).string("No. Calls");
   }
 
-  public reportSheetData(rowNo: number, report: Report) {
-    this.reportSheet.cell(rowNo, 1).string(report.agent.details.name);
-    this.reportSheet.cell(rowNo, 2).string(report.noVoiceMail.toString());
-    this.reportSheet.cell(rowNo, 3).string(report.noCalls.toString());
+  public reportSheetData(rowNo: number, report: IReport) {
+    this.reportSheet.cell(rowNo, 1).string(report.name);
+    this.reportSheet.cell(rowNo, 2).number(report.voiceMailsCalls);
+    //this.reportSheet.cell(rowNo, 3).number(report.noCalls.toString());
   }
 
   public consumerSheetData(rowNo: number, consumer: Consumer) {
     /** Content */
     this.consumersSheet
       .cell(rowNo, 1)
-      .string(consumer.consumerData.phoneNo.toString());
-    this.consumersSheet
-      .cell(rowNo, 2)
-      .string(consumer.consumerData.age.toString());
+      .number(parseInt(consumer.consumerData.phoneNo));
+    this.consumersSheet.cell(rowNo, 2).number(consumer.consumerData.age);
     this.consumersSheet.cell(rowNo, 3).string(consumer.consumerData.state);
     this.consumersSheet
       .cell(rowNo, 4)
-      .string(consumer.consumerData.noOfChildren.toString());
-    this.consumersSheet
-      .cell(rowNo, 5)
-      .string(consumer.consumerData.noOfCars.toString());
+      .number(consumer.consumerData.noOfChildren);
+    this.consumersSheet.cell(rowNo, 5).number(consumer.consumerData.noOfCars);
     this.consumersSheet
       .cell(rowNo, 6)
-      .string(consumer.consumerData.householdIncome.toString());
+      .number(consumer.consumerData.householdIncome);
     this.consumersSheet
       .cell(rowNo, 7)
       .string(consumer.consumerData.objectStatus);
@@ -94,34 +90,18 @@ export class Excel {
 
   public agentSheetData(rowNo: number, agent: Agent) {
     /** Content */
-    this.agentsSheet.cell(rowNo, 1).string(agent.details.name.toString());
-    this.agentsSheet
-      .cell(rowNo, 2)
-      .string(agent.details.minAgeInterval.toString());
-    this.agentsSheet
-      .cell(rowNo, 3)
-      .string(agent.details.maxAgeInterval.toString());
+    this.agentsSheet.cell(rowNo, 1).string(agent.details.name);
+    this.agentsSheet.cell(rowNo, 2).number(agent.details.minAgeInterval);
+    this.agentsSheet.cell(rowNo, 3).number(agent.details.maxAgeInterval);
     this.agentsSheet.cell(rowNo, 4).string(agent.details.stateHandle);
-    this.agentsSheet
-      .cell(rowNo, 5)
-      .string(agent.details.minNumberOfKids.toString());
-    this.agentsSheet
-      .cell(rowNo, 6)
-      .string(agent.details.maxNumberOfKids.toString());
-    this.agentsSheet
-      .cell(rowNo, 7)
-      .string(agent.details.minNumberOfCars.toString());
-    this.agentsSheet
-      .cell(rowNo, 8)
-      .string(agent.details.maxNumberOfCars.toString());
+    this.agentsSheet.cell(rowNo, 5).number(agent.details.minNumberOfKids);
+    this.agentsSheet.cell(rowNo, 6).number(agent.details.maxNumberOfKids);
+    this.agentsSheet.cell(rowNo, 7).number(agent.details.minNumberOfCars);
+    this.agentsSheet.cell(rowNo, 8).number(agent.details.maxNumberOfCars);
     this.agentsSheet.cell(rowNo, 9).string(agent.details.statusHandle);
-    this.agentsSheet
-      .cell(rowNo, 10)
-      .string(agent.details.minHouseholdIncome.toString());
-    this.agentsSheet
-      .cell(rowNo, 11)
-      .string(agent.details.maxHouseholdIncome.toString());
-    this.agentsSheet.cell(rowNo, 12).string(agent.details.state.toString());
+    this.agentsSheet.cell(rowNo, 10).number(agent.details.minHouseholdIncome);
+    this.agentsSheet.cell(rowNo, 11).number(agent.details.maxHouseholdIncome);
+    this.agentsSheet.cell(rowNo, 12).number(agent.details.state);
   }
 
   public saveExcel(name: string) {

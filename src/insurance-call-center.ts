@@ -1,8 +1,4 @@
-import {
-  IConsumer,
-  EState,
-  EStatus
-} from "./models/consumer/consumer.interface";
+import { IConsumer } from "./models/consumer/consumer.interface";
 import Agent from "./models/agent/agent";
 import { IAgent, IAgentState } from "./models/agent/agent.interface";
 import Consumer from "./models/consumer/consumer";
@@ -11,8 +7,7 @@ import { VoiceMail } from "./models/voiceMail/voiceMail";
 import { IVoiceMailStatus } from "./models/voiceMail/voiceMail.interface";
 import * as utils from "./utils/utils";
 import * as async from "async";
-import { Excel } from "./excel/excel";
-import { OpenCall } from "./models/openCall/openCall";
+import { Excel, IReport } from "./excel/excel";
 
 export interface ICallCenterParams {
   noAgents: number;
@@ -42,12 +37,12 @@ export default class InsuranceCallCenter {
   public loggerQueue: ILogger = {
     consumers: async.queue((consumer: Consumer, callback) => {
       this.excel.consumerSheetData(this.consumerCounter++, consumer);
-      this.excel.saveExcel("IIC");
+      this.excel.saveExcel("InsuranceCallCenterReport");
       callback();
     }, 1),
     agents: async.queue((agent: Agent, callback) => {
       this.excel.agentSheetData(this.agentsCounter++, agent);
-      this.excel.saveExcel("IIC");
+      this.excel.saveExcel("InsuranceCallCenterReport");
       callback();
     }, 1),
     recievedCallLogs: async.queue((task: any, callback) => {
@@ -246,18 +241,45 @@ export default class InsuranceCallCenter {
       console.log(`CallLogs drain`);
     });
 
-    this.loggerQueue.voiceMails.drain(() => {
-      /** Voicemails done */
-      let result = this.historyVoiceMailQueue.filter(x => {
-        return (
-          x.asignedAgent.details.name == this.inMemory.agents[0].details.name
-        );
-      });
+    let countVoicemailsForAgents: Array<IReport> = [];
 
+    this.loggerQueue.voiceMails.drain(() => {
+      // console.log(
+      //   `Agent ${this.inMemory.agents[1].details.name} calls - ${result.length} times`
+      // );
+
+      this.inMemory.agents.forEach((agent: Agent) => {
+        /** Voicemails done */
+        let result = this.historyVoiceMailQueue.filter(x => {
+          return x.asignedAgent.details.name == agent.details.name;
+        });
+
+        let isAgentInArray: IReport = countVoicemailsForAgents.find(
+          (x: IReport) => x.name == agent.details.name
+        );
+        if (isAgentInArray) {
+          isAgentInArray.voiceMailsCalls = result.length;
+        } else {
+          countVoicemailsForAgents.push({
+            name: agent.details.name,
+            voiceMailsCalls: result.length,
+            noCalls: 0
+          });
+        }
+      });
       console.log(
-        `How many voiceMails were left for first agent ${this.inMemory.agents[1].details.name} - ${result.length}`
+        "History 🎂 voicemail length: ",
+        this.historyVoiceMailQueue.length
       );
-      console.log(this.historyVoiceMailQueue.length);
+      console.log(`Voicemails left`, this.voiceMailQueues.length);
+      if (this.voiceMailQueues.length == 0) {
+        //test
+        console.log(countVoicemailsForAgents.length);
+        countVoicemailsForAgents.forEach((report: IReport, index: number) => {
+          this.excel.reportSheetData(index + 2, report);
+        });
+        this.excel.saveExcel("InsuranceCallCenterReport");
+      }
     });
   }
 
