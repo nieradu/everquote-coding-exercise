@@ -17,11 +17,11 @@ class App {
       /** How many agents to generate */
       noAgents: 20,
       /** interval of in call time */
-      minCallSleep: 1000,
-      maxCallSleep: 3000,
+      minCallSleep: 100,
+      maxCallSleep: 300,
       /** interval of in call from voicemail time */
-      minVoiceMailCallSleep: 100,
-      maxVoiceMailCallSleep: 200,
+      minVoiceMailCallSleep: 1000,
+      maxVoiceMailCallSleep: 2000,
       /** close call center after all calls have been consumed */
       noOfCalls: noConsumers
     });
