@@ -11,7 +11,7 @@ class App {
 
   constructor() {
     let noConsumers = 1000;
-    /** Generate 100 consumers */
+    /** Generate X consumers */
     this.generateConsumers(noConsumers);
 
     /** New InsuranceCallCenter */
@@ -38,25 +38,10 @@ class App {
 
   public generateConsumers(number: number) {
     for (let index = 0; index < number; index++) {
-      this.consumers.push(
-        new Consumer({
-          age: utils.randomNumberInterval(0, 80),
-          householdIncome: utils.randomNumberInterval(0, 150000),
-          noOfCars: utils.randomNumberInterval(0, 20),
-          noOfChildren: utils.randomNumberInterval(0, 10),
-          objectStatus: utils.randomObjFromArray([EStatus.OWN, EStatus.RENT]),
-          state: utils.randomObjFromArray([
-            EState.SINGLE,
-            EState.MARRIED,
-            EState.DIVORCED
-          ]),
-          phoneNo: utils.randomNumber(1000000000, 1000000000).toString()
-        })
-      );
+      this.consumers.push(new Consumer());
     }
   }
 }
 
-console.log("--------------------------");
+console.log("------START APP -------");
 new App();
-console.log("--------------------------");

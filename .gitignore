@@ -10,5 +10,6 @@ dist/**/*.map
 
 coverage
 *.py
+*.pytest_cache
 # *.xlsx
 bkp_*.xlsx

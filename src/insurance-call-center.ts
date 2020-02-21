@@ -21,8 +21,6 @@ export interface ICallCenterParams {
 export interface ILogger {
   consumers: async.AsyncQueue<Consumer>;
   agents: async.AsyncQueue<Agent>;
-  recievedCallLogs: async.AsyncQueue<{ agent: Agent; consumer: Consumer }>;
-  voiceMails: async.AsyncQueue<VoiceMail>;
 }
 export interface ICallLog {
   agent: Agent;
@@ -54,13 +52,7 @@ export default class InsuranceCallCenter {
     agents: async.queue((agent: Agent, callback) => {
       this.excel.agentSheetData(this.agentsCounter++, agent);
       callback();
-    }, 100),
-    recievedCallLogs: async.queue((task: any, callback) => {
-      callback();
-    }, 1),
-    voiceMails: async.queue((task: any, callback) => {
-      callback();
-    }, 1)
+    }, 100)
   };
 
   constructor(private params: ICallCenterParams) {
@@ -68,9 +60,9 @@ export default class InsuranceCallCenter {
 
     /** generate Agemts */
     this.genereateAgents(this.params.noAgents);
-
+    /** queue with concurency of number of agents */
     this.initCallRouter();
-
+    /** Start workers to watch voiceMails */
     this.createCallFromVoicemailWorker();
     this.workerForVoiceMailQueue();
   }
@@ -81,7 +73,7 @@ export default class InsuranceCallCenter {
       this.workFlow(consumer);
       /** Free task from queue */
       callback();
-    }, 20);
+    }, this.params.noAgents);
   }
 
   public workFlow(consumer: Consumer) {
@@ -108,13 +100,8 @@ export default class InsuranceCallCenter {
         /** Mark agent as busy */
         selectedAgent.details.state = IAgentState.BUSY;
         /** Open call with consumer */
-
         this.openCall(selectedAgent, consumer).then((data: any) => {
           /** Trigger after call has ended */
-          this.loggerQueue.recievedCallLogs.push({
-            agent: data.agent,
-            consumer: consumer
-          });
           this.endCall(data.agent, data.consumer, data.timeStart);
         });
         return;
@@ -139,8 +126,6 @@ export default class InsuranceCallCenter {
     this.callRouter.push(consumer, (err: any) => {
       /** log consumers */
       this.loggerQueue.consumers.push(consumer);
-
-      //Done
       if (err) {
         console.log(err);
       }
@@ -186,26 +171,20 @@ export default class InsuranceCallCenter {
     consumer: Consumer
   ): Promise<{ agent: Agent; consumer: Consumer }> {
     /** Simulates a call connection that ends on resolve after a random time */
-    var shit = utils.randomNumberInterval(
-      this.params.minCallSleep,
-      this.params.maxCallSleep
-    );
+
     var newOpenCall = new Promise<{
       agent: Agent;
       consumer: Consumer;
       timeStart: Date;
     }>(resolve => {
-      console.log(
-        "⌛ StartTimer for call with agent: " +
-          agent.details.name +
-          "with consumer: " +
-          consumer.consumerData.phoneNo
-      );
+      /** Start moment to log for call */
       let timeStart = new Date();
       setTimeout(() => {
+        /** End call after X time */
         resolve({ agent, consumer, timeStart });
-      }, shit);
+      }, utils.randomNumberInterval(this.params.minCallSleep, this.params.maxCallSleep));
     });
+
     return newOpenCall;
   }
 
@@ -226,10 +205,9 @@ export default class InsuranceCallCenter {
   }
 
   public getVoiceMailFor(name: string): Array<VoiceMail> {
-    /** Returns voicemails by filtering voicemail attribute (agents).
-     * TODO: use an uniqueidentifier for agent
-     */
+    /** Returns voicemails by filtering voicemail attribute (agents).*/
     return this.voiceMailQueues.filter((voiceMailQueue: VoiceMail) => {
+      /** return first */
       return voiceMailQueue.agents.find((ag: Agent) => ag.details.name == name);
     });
   }
@@ -258,9 +236,13 @@ export default class InsuranceCallCenter {
 
   public createCallFromVoicemailWorker() {
     var _this = this;
+    /** Counter for active intervals */
     this.intervalsAwake += 1;
+    /** Set Interval for  worker */
     let workerInterval = setInterval(() => {
+      /** Check for voicemail queues */
       if (_this.voiceMailQueues && _this.voiceMailQueues.length > 0) {
+        /** Find available voicemails for agents */
         let voiceMailToCall = _this.voiceMailQueues.find(x => {
           return (
             (x.status == IVoiceMailStatus.NEW ||
@@ -271,11 +253,14 @@ export default class InsuranceCallCenter {
         });
 
         if (voiceMailToCall) {
+          /** Get available agents */
           let agents = _this.getAvailableAgents(
             voiceMailToCall.agents,
             IAgentState.IDLE
           );
+
           if (agents && agents.length > 0) {
+            /** Chose random agent from available ones */
             let agent = utils.randomObjFromArray(agents);
             /** Set agent Busy */
             agent.details.state = IAgentState.BUSY;
@@ -283,7 +268,9 @@ export default class InsuranceCallCenter {
             voiceMailToCall.asignedAgent = agent;
             /** Start Time for Call*/
             let timeStart = new Date();
+            /** Make call back to consumer */
             _this.newOutboundCall(voiceMailToCall).then(voiceMail => {
+              /** End call */
               _this.endCall(agent, voiceMail.consumer, timeStart, voiceMail);
             });
           }
@@ -295,8 +282,10 @@ export default class InsuranceCallCenter {
   }
 
   public newOutboundCall(voiceMailToCall: VoiceMail): Promise<VoiceMail> {
+    /** Call socket */
     var newOpenCall = new Promise<VoiceMail>(resolve => {
       setTimeout(() => {
+        /** Handler for end call */
         resolve(voiceMailToCall);
       }, utils.randomNumberInterval(this.params.minVoiceMailCallSleep, this.params.maxVoiceMailCallSleep));
     });
@@ -321,15 +310,13 @@ export default class InsuranceCallCenter {
     agent.details.state = IAgentState.IDLE;
     /** 3. For voicemail handling if the call ended came from a voiceMail */
     if (voiceMail) {
+      /** Update voicemail status and assigned agent */
       voiceMail.updateVoiceMail({
         status: IVoiceMailStatus.DONE,
         asignedAgent: agent
       });
       /** Add to historyQueue resolved voiceMail */
       this.historyVoiceMailQueue.push(voiceMail);
-
-      this.loggerQueue.voiceMails.push(voiceMail);
-
       /** Remove from voiceMailQueues voiceMails resolved */
       this.voiceMailQueues = this.voiceMailQueues.filter(
         x => x.id != voiceMail.id
@@ -350,7 +337,6 @@ export default class InsuranceCallCenter {
         console.log("END & REPORT");
         console.log("Calls recieved", this.historyCallLog.length);
         console.log("History voicemails", this.historyVoiceMailQueue.length);
-        console.log("Left voicemails", this.voiceMailQueues.length);
 
         this.inMemory.agents.forEach((agent: Agent, index: number) => {
           /** Get how many calls did agent get */
@@ -363,7 +349,7 @@ export default class InsuranceCallCenter {
           let voiceMailCalls = this.historyVoiceMailQueue.filter(x => {
             return x.asignedAgent.details.name == agent.details.name;
           });
-
+          /** Write Report sheet data */
           this.excel.reportSheetData(index + 2, {
             name: agent.details.name,
             noCalls: agentCalls.length,
@@ -372,6 +358,7 @@ export default class InsuranceCallCenter {
         });
 
         this.historyCallLog.forEach((call: ICallLog, index) => {
+          /** Write CallLog sheet data */
           this.excel.callLogSheetData(index + 2, {
             agentName: call.agent.details.name,
             consumerPhoneNo: call.consumer.consumerData.phoneNo,
@@ -380,59 +367,17 @@ export default class InsuranceCallCenter {
             timeEnd: call.timeEnd
           });
         });
-
+        /** Save Excel */
         this.excel.saveExcel();
       }
     }
   }
 
   public genereateAgents(number: number): void {
-    for (let indx = 0; indx < number; indx++) {
-      let stateHandle = [];
-      let statusHandle = [];
-      for (let i = 0; i < utils.randomNumberInterval(0, 3); i++) {
-        let state = utils.randomObjFromArray([
-          IConsumerAttributes.EState.MARRIED,
-          IConsumerAttributes.EState.SINGLE,
-          IConsumerAttributes.EState.DIVORCED
-        ]);
-        stateHandle.push(state);
-      }
-
-      for (let i = 0; i < utils.randomNumberInterval(0, 2); i++) {
-        let status = utils.randomObjFromArray([
-          IConsumerAttributes.EStatus.OWN,
-          IConsumerAttributes.EStatus.RENT
-        ]);
-        statusHandle.push(status);
-      }
-      let minAgeValue = utils.randomNumber(1, 40);
-      let minNoKidsValue = utils.randomNumber(0, 2);
-      let minNoCarsValue = utils.randomNumber(0, 4);
-      let minHouseholdIncomeValue = utils.randomNumber(0, 40000);
-
-      let newAgent = new Agent({
-        name: utils.randomString(),
-        minAgeInterval: minAgeValue,
-        maxAgeInterval: utils.randomNumber(minAgeValue + 1, 80),
-        stateHandle,
-        statusHandle,
-        minNumberOfKids: minNoKidsValue,
-        maxNumberOfKids:
-          minNoKidsValue == 0 ? 0 : utils.randomNumber(minNoKidsValue + 1, 10),
-        minNumberOfCars: minNoCarsValue,
-        maxNumberOfCars:
-          minNoCarsValue == 0 ? 0 : utils.randomNumber(minNoCarsValue + 1, 20),
-        minHouseholdIncome: minHouseholdIncomeValue,
-        maxHouseholdIncome:
-          minHouseholdIncomeValue == 0
-            ? 0
-            : utils.randomNumber(minHouseholdIncomeValue + 1, 150000),
-        state: IAgentState.IDLE
-      });
-
-      this.inMemory.agents.push(newAgent);
-      this.loggerQueue.agents.push(newAgent);
+    /** Generate x agents */
+    for (let index = 0; index < number; index++) {
+      this.inMemory.agents.push(new Agent());
+      this.loggerQueue.agents.push(new Agent());
     }
   }
 }
