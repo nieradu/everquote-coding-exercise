@@ -3,25 +3,36 @@ import { EStatus, EState } from "./models/consumer/consumer.interface";
 import Consumer from "./models/consumer/consumer";
 
 import * as utils from "./utils/utils";
+import { writeHeapSnapshot } from "v8";
 
 class App {
   public consumers: Array<Consumer> = [];
   public callCenter: InsuranceCallCenter;
 
   constructor() {
+    let noConsumers = 1000;
     /** Generate 100 consumers */
-    this.generateConsumers(100);
+    this.generateConsumers(noConsumers);
 
     /** New InsuranceCallCenter */
     this.callCenter = new InsuranceCallCenter({
+      /** How many agents to generate */
       noAgents: 20,
-      minCallSleep: 100,
-      maxCallSleep: 300
+      /** interval of in call time */
+      minCallSleep: 1000,
+      maxCallSleep: 3000,
+      /** interval of in call from voicemail time */
+      minVoiceMailCallSleep: 100,
+      maxVoiceMailCallSleep: 200,
+      /** close call center after all calls have been consumed */
+      noOfCalls: noConsumers
     });
 
     /** Each consumer makes a call */
     this.consumers.forEach((consumer: Consumer) => {
-      this.callCenter.newCall(consumer);
+      setTimeout(() => {
+        this.callCenter.newCall(consumer);
+      }, utils.randomNumberInterval(100, 3000));
     });
   }
 

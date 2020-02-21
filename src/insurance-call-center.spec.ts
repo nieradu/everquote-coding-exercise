@@ -26,7 +26,8 @@ describe("Insurance Call Center", () => {
   var icc = new InsuranceCallCenter({
     noAgents: 20,
     minCallSleep: 1,
-    maxCallSleep: 2
+    maxCallSleep: 2,
+    noOfCalls: 10
   });
   var consumer = new Consumer({
     age: 30,
@@ -63,7 +64,8 @@ describe("Insurance Call Center", () => {
     var icc = new InsuranceCallCenter({
       noAgents: 2,
       minCallSleep: 1,
-      maxCallSleep: 2
+      maxCallSleep: 2,
+      noOfCalls: 10
     });
     expect(icc.inMemory.agents.length).toEqual(2);
   });
@@ -71,7 +73,8 @@ describe("Insurance Call Center", () => {
     var icc = new InsuranceCallCenter({
       noAgents: 20,
       minCallSleep: 1,
-      maxCallSleep: 2
+      maxCallSleep: 2,
+      noOfCalls: 10
     });
     expect(icc.newCall).toBeDefined();
   });

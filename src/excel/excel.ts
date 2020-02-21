@@ -4,10 +4,18 @@ import { VoiceMail } from "../models/voiceMail/voiceMail";
 
 var excel = require("excel4node");
 
-export interface IReport {
+interface IReport {
   name: string;
   voiceMailsCalls: number;
   noCalls: number;
+}
+
+interface ICallLog {
+  agentName: string;
+  consumerPhoneNo: string;
+  wasDirectCall: boolean;
+  timeStart: Date;
+  timeEnd: Date;
 }
 
 export class Excel {
@@ -15,18 +23,22 @@ export class Excel {
   public consumersSheet: any;
   public agentsSheet: any;
   public reportSheet: any;
+  public callLogSheet: any;
 
-  constructor(private reference: number) {
+  constructor(private name: string) {
+    this.name = this.name;
     // Create a new instance of a Workbook class
     this.workbook = new excel.Workbook();
     // Add Worksheets to the workbook
     this.consumersSheet = this.workbook.addWorksheet("Consumers");
     this.agentsSheet = this.workbook.addWorksheet("Agents");
     this.reportSheet = this.workbook.addWorksheet("Report");
+    this.callLogSheet = this.workbook.addWorksheet("CalLog");
 
     this.consumerSheetHeader();
     this.agentSheetHeader();
     this.reportSheetHeader();
+    this.callLogSheetHeader();
   }
 
   public consumerSheetHeader() {
@@ -63,10 +75,27 @@ export class Excel {
     this.reportSheet.cell(1, 3).string("No. Calls");
   }
 
+  public callLogSheetHeader() {
+    /** Header */
+    this.callLogSheet.cell(1, 1).string("Agent");
+    this.callLogSheet.cell(1, 2).string("Phone no.");
+    this.callLogSheet.cell(1, 3).string("Direct call");
+    this.callLogSheet.cell(1, 4).string("Started call");
+    this.callLogSheet.cell(1, 5).string("End call");
+  }
+
+  public callLogSheetData(rowNo: number, callLog: ICallLog) {
+    this.callLogSheet.cell(rowNo, 1).string(callLog.agentName);
+    this.callLogSheet.cell(rowNo, 2).string(callLog.consumerPhoneNo);
+    this.callLogSheet.cell(rowNo, 3).bool(callLog.wasDirectCall);
+    this.callLogSheet.cell(rowNo, 4).date(callLog.timeStart);
+    this.callLogSheet.cell(rowNo, 5).date(callLog.timeEnd);
+  }
+
   public reportSheetData(rowNo: number, report: IReport) {
     this.reportSheet.cell(rowNo, 1).string(report.name);
     this.reportSheet.cell(rowNo, 2).number(report.voiceMailsCalls);
-    //this.reportSheet.cell(rowNo, 3).number(report.noCalls.toString());
+    this.reportSheet.cell(rowNo, 3).number(report.noCalls);
   }
 
   public consumerSheetData(rowNo: number, consumer: Consumer) {
@@ -104,7 +133,7 @@ export class Excel {
     this.agentsSheet.cell(rowNo, 12).number(agent.details.state);
   }
 
-  public saveExcel(name: string) {
-    this.workbook.write(`${name}.xlsx`);
+  public saveExcel() {
+    this.workbook.write(`${this.name}.xlsx`);
   }
 }

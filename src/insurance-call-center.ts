@@ -7,21 +7,30 @@ import { VoiceMail } from "./models/voiceMail/voiceMail";
 import { IVoiceMailStatus } from "./models/voiceMail/voiceMail.interface";
 import * as utils from "./utils/utils";
 import * as async from "async";
-import { Excel, IReport } from "./excel/excel";
+import { Excel } from "./excel/excel";
 
 export interface ICallCenterParams {
   noAgents: number;
   minCallSleep: number;
   maxCallSleep: number;
+  minVoiceMailCallSleep: number;
+  maxVoiceMailCallSleep: number;
+  noOfCalls: number;
 }
 
 export interface ILogger {
   consumers: async.AsyncQueue<Consumer>;
   agents: async.AsyncQueue<Agent>;
-  recievedCallLogs: async.AsyncQueue<Agent>;
+  recievedCallLogs: async.AsyncQueue<{ agent: Agent; consumer: Consumer }>;
   voiceMails: async.AsyncQueue<VoiceMail>;
 }
-
+export interface ICallLog {
+  agent: Agent;
+  consumer: Consumer;
+  directCall: boolean;
+  timeStart: Date;
+  timeEnd: Date;
+}
 export default class InsuranceCallCenter {
   private consumerCounter: number = 2;
   private agentsCounter: number = 2;
@@ -32,19 +41,20 @@ export default class InsuranceCallCenter {
   };
   public voiceMailQueues: Array<VoiceMail> = [];
   public historyVoiceMailQueue: Array<VoiceMail> = [];
+  public historyCallLog: Array<ICallLog> = [];
   public callRouter: async.AsyncQueue<Consumer>;
   public excel: Excel;
+  private intervalsAwake: number = 0;
+
   public loggerQueue: ILogger = {
     consumers: async.queue((consumer: Consumer, callback) => {
       this.excel.consumerSheetData(this.consumerCounter++, consumer);
-      this.excel.saveExcel("InsuranceCallCenterReport");
       callback();
-    }, 1),
+    }, 100),
     agents: async.queue((agent: Agent, callback) => {
       this.excel.agentSheetData(this.agentsCounter++, agent);
-      this.excel.saveExcel("InsuranceCallCenterReport");
       callback();
-    }, 1),
+    }, 100),
     recievedCallLogs: async.queue((task: any, callback) => {
       callback();
     }, 1),
@@ -54,7 +64,7 @@ export default class InsuranceCallCenter {
   };
 
   constructor(private params: ICallCenterParams) {
-    this.excel = new Excel(100);
+    this.excel = new Excel("InsuranceCallCenterReport");
 
     /** generate Agemts */
     this.genereateAgents(this.params.noAgents);
@@ -63,7 +73,6 @@ export default class InsuranceCallCenter {
 
     this.createCallFromVoicemailWorker();
     this.workerForVoiceMailQueue();
-    this.workerForReport();
   }
 
   public initCallRouter() {
@@ -72,7 +81,7 @@ export default class InsuranceCallCenter {
       this.workFlow(consumer);
       /** Free task from queue */
       callback();
-    }, 1);
+    }, 20);
   }
 
   public workFlow(consumer: Consumer) {
@@ -102,8 +111,11 @@ export default class InsuranceCallCenter {
 
         this.openCall(selectedAgent, consumer).then((data: any) => {
           /** Trigger after call has ended */
-          this.loggerQueue.recievedCallLogs.push(data.agent);
-          this.endCall(data.agent, data.consumer);
+          this.loggerQueue.recievedCallLogs.push({
+            agent: data.agent,
+            consumer: consumer
+          });
+          this.endCall(data.agent, data.consumer, data.timeStart);
         });
         return;
       } else {
@@ -174,13 +186,26 @@ export default class InsuranceCallCenter {
     consumer: Consumer
   ): Promise<{ agent: Agent; consumer: Consumer }> {
     /** Simulates a call connection that ends on resolve after a random time */
-    var newOpenCall = new Promise<{ agent: Agent; consumer: Consumer }>(
-      resolve => {
-        setTimeout(() => {
-          resolve({ agent, consumer });
-        }, utils.randomNumberInterval(this.params.minCallSleep, this.params.maxCallSleep));
-      }
+    var shit = utils.randomNumberInterval(
+      this.params.minCallSleep,
+      this.params.maxCallSleep
     );
+    var newOpenCall = new Promise<{
+      agent: Agent;
+      consumer: Consumer;
+      timeStart: Date;
+    }>(resolve => {
+      console.log(
+        "⌛ StartTimer for call with agent: " +
+          agent.details.name +
+          "with consumer: " +
+          consumer.consumerData.phoneNo
+      );
+      let timeStart = new Date();
+      setTimeout(() => {
+        resolve({ agent, consumer, timeStart });
+      }, shit);
+    });
     return newOpenCall;
   }
 
@@ -213,6 +238,7 @@ export default class InsuranceCallCenter {
     /** Searches for idle agents
      *  Sets first voicemail found to status (CALL_BACK) for each idle agent
      */
+    this.intervalsAwake += 1;
     let workInterval = setInterval(() => {
       let idleAgents = this.getAvailableAgents(
         this.inMemory.agents,
@@ -226,65 +252,13 @@ export default class InsuranceCallCenter {
         }
       });
 
-      if (
-        this.voiceMailQueues.length == 0 &&
-        this.historyVoiceMailQueue.length > 0
-      ) {
-        clearInterval(workInterval);
-      }
+      this.endAndReport(workInterval);
     }, 100);
-  }
-
-  public workerForReport() {
-    this.loggerQueue.recievedCallLogs.drain(() => {
-      /** Recieved calls done */
-      console.log(`CallLogs drain`);
-    });
-
-    let countVoicemailsForAgents: Array<IReport> = [];
-
-    this.loggerQueue.voiceMails.drain(() => {
-      // console.log(
-      //   `Agent ${this.inMemory.agents[1].details.name} calls - ${result.length} times`
-      // );
-
-      this.inMemory.agents.forEach((agent: Agent) => {
-        /** Voicemails done */
-        let result = this.historyVoiceMailQueue.filter(x => {
-          return x.asignedAgent.details.name == agent.details.name;
-        });
-
-        let isAgentInArray: IReport = countVoicemailsForAgents.find(
-          (x: IReport) => x.name == agent.details.name
-        );
-        if (isAgentInArray) {
-          isAgentInArray.voiceMailsCalls = result.length;
-        } else {
-          countVoicemailsForAgents.push({
-            name: agent.details.name,
-            voiceMailsCalls: result.length,
-            noCalls: 0
-          });
-        }
-      });
-      console.log(
-        "History 🎂 voicemail length: ",
-        this.historyVoiceMailQueue.length
-      );
-      console.log(`Voicemails left`, this.voiceMailQueues.length);
-      if (this.voiceMailQueues.length == 0) {
-        //test
-        console.log(countVoicemailsForAgents.length);
-        countVoicemailsForAgents.forEach((report: IReport, index: number) => {
-          this.excel.reportSheetData(index + 2, report);
-        });
-        this.excel.saveExcel("InsuranceCallCenterReport");
-      }
-    });
   }
 
   public createCallFromVoicemailWorker() {
     var _this = this;
+    this.intervalsAwake += 1;
     let workerInterval = setInterval(() => {
       if (_this.voiceMailQueues && _this.voiceMailQueues.length > 0) {
         let voiceMailToCall = _this.voiceMailQueues.find(x => {
@@ -303,20 +277,20 @@ export default class InsuranceCallCenter {
           );
           if (agents && agents.length > 0) {
             let agent = utils.randomObjFromArray(agents);
+            /** Set agent Busy */
             agent.details.state = IAgentState.BUSY;
+            /** Assign VoiceMail to Agent */
             voiceMailToCall.asignedAgent = agent;
-
+            /** Start Time for Call*/
+            let timeStart = new Date();
             _this.newOutboundCall(voiceMailToCall).then(voiceMail => {
-              _this.endCall(agent, voiceMail.consumer, voiceMail);
+              _this.endCall(agent, voiceMail.consumer, timeStart, voiceMail);
             });
           }
         }
-      } else if (
-        _this.voiceMailQueues.length == 0 &&
-        _this.historyVoiceMailQueue.length > 0
-      ) {
-        clearInterval(workerInterval);
       }
+
+      this.endAndReport(workerInterval);
     }, 100);
   }
 
@@ -324,14 +298,25 @@ export default class InsuranceCallCenter {
     var newOpenCall = new Promise<VoiceMail>(resolve => {
       setTimeout(() => {
         resolve(voiceMailToCall);
-      }, utils.randomNumberInterval(this.params.minCallSleep, this.params.maxCallSleep));
+      }, utils.randomNumberInterval(this.params.minVoiceMailCallSleep, this.params.maxVoiceMailCallSleep));
     });
     return newOpenCall;
   }
 
-  public endCall(agent: Agent, consumer: Consumer, voiceMail?: VoiceMail) {
+  public endCall(
+    agent: Agent,
+    consumer: Consumer,
+    timeStart: Date,
+    voiceMail?: VoiceMail
+  ) {
     // 1. update call status
-    //this.callLog.push()
+    this.historyCallLog.push({
+      agent,
+      consumer,
+      directCall: voiceMail ? false : true,
+      timeStart,
+      timeEnd: new Date()
+    });
     // 2. update agent status
     agent.details.state = IAgentState.IDLE;
     /** 3. For voicemail handling if the call ended came from a voiceMail */
@@ -349,6 +334,55 @@ export default class InsuranceCallCenter {
       this.voiceMailQueues = this.voiceMailQueues.filter(
         x => x.id != voiceMail.id
       );
+    }
+  }
+
+  public endAndReport(intervalName: NodeJS.Timeout) {
+    if (
+      this.voiceMailQueues.length == 0 &&
+      this.historyVoiceMailQueue.length > 0 &&
+      this.historyCallLog.length == this.params.noOfCalls
+    ) {
+      this.intervalsAwake -= 1;
+      clearInterval(intervalName);
+
+      if (this.intervalsAwake == 0) {
+        console.log("END & REPORT");
+        console.log("Calls recieved", this.historyCallLog.length);
+        console.log("History voicemails", this.historyVoiceMailQueue.length);
+        console.log("Left voicemails", this.voiceMailQueues.length);
+
+        this.inMemory.agents.forEach((agent: Agent, index: number) => {
+          /** Get how many calls did agent get */
+          let agentCalls = this.historyCallLog.filter((x: ICallLog) => {
+            return (
+              x.agent.details.name == agent.details.name && x.directCall == true
+            );
+          });
+          /** Get number of voiceMails calls for agent */
+          let voiceMailCalls = this.historyVoiceMailQueue.filter(x => {
+            return x.asignedAgent.details.name == agent.details.name;
+          });
+
+          this.excel.reportSheetData(index + 2, {
+            name: agent.details.name,
+            noCalls: agentCalls.length,
+            voiceMailsCalls: voiceMailCalls.length
+          });
+        });
+
+        this.historyCallLog.forEach((call: ICallLog, index) => {
+          this.excel.callLogSheetData(index + 2, {
+            agentName: call.agent.details.name,
+            consumerPhoneNo: call.consumer.consumerData.phoneNo,
+            wasDirectCall: call.directCall,
+            timeStart: call.timeStart,
+            timeEnd: call.timeEnd
+          });
+        });
+
+        this.excel.saveExcel();
+      }
     }
   }
 
