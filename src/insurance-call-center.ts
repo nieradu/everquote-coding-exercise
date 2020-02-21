@@ -2,7 +2,6 @@ import { IConsumer } from "./models/consumer/consumer.interface";
 import Agent from "./models/agent/agent";
 import { IAgent, IAgentState } from "./models/agent/agent.interface";
 import Consumer from "./models/consumer/consumer";
-import * as IConsumerAttributes from "./models/consumer/consumer.interface";
 import { VoiceMail } from "./models/voiceMail/voiceMail";
 import { IVoiceMailStatus } from "./models/voiceMail/voiceMail.interface";
 import * as utils from "./utils/utils";

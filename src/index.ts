@@ -1,9 +1,7 @@
 import InsuranceCallCenter from "./insurance-call-center";
-import { EStatus, EState } from "./models/consumer/consumer.interface";
 import Consumer from "./models/consumer/consumer";
 
 import * as utils from "./utils/utils";
-import { writeHeapSnapshot } from "v8";
 
 class App {
   public consumers: Array<Consumer> = [];
