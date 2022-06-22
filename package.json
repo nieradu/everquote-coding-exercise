@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@types/async": "^3.0.7",
-    "async": "^3.1.1",
+    "async": "^3.2.2",
     "excel4node": "^1.7.2"
   }
 }
